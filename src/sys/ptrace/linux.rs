@@ -51,6 +51,7 @@ libc_enum!{
                                                target_arch = "mips",
                                                target_arch = "mips64",
                                                target_arch = "x86_64",
+                                               target_arch = "e2k",
                                                target_pointer_width = "32"))))]
         PTRACE_GETREGS,
         #[cfg(any(all(target_os = "android", target_pointer_width = "32"),
@@ -58,6 +59,7 @@ libc_enum!{
                                                target_arch = "mips",
                                                target_arch = "mips64",
                                                target_arch = "x86_64",
+                                               target_arch = "e2k",
                                                target_pointer_width = "32"))))]
         PTRACE_SETREGS,
         #[cfg(any(all(target_os = "android", target_pointer_width = "32"),
