@@ -2,7 +2,7 @@
 name        = "nix"
 description = "Rust friendly bindings to *nix APIs"
 edition     = "2021"
-version     = "0.30.0"
+version     = "0.30.1"
 rust-version = "1.69"
 authors     = ["The nix-rust Project Developers"]
 repository  = "https://github.com/nix-rust/nix"
@@ -22,7 +22,7 @@ targets = [
   "x86_64-unknown-openbsd",
   "x86_64-unknown-netbsd",
   "x86_64-unknown-dragonfly",
-  "x86_64-fuchsia",
+  "x86_64-unknown-fuchsia",
   "x86_64-unknown-redox",
   "x86_64-unknown-illumos"
 ]
