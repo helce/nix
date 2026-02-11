@@ -3,6 +3,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 # Change Log
 
+## [0.31.1] - 2026-01-23
+
+### Added
+
+- termios: Add definition for IUCLC to supported platforms
+  ([#2702](https://github.com/nix-rust/nix/pull/2702))
+- termios: Add definition for XCASE for supported platforms
+  ([#2703](https://github.com/nix-rust/nix/pull/2703))
+
+
 ## [0.31.0] - 2026-01-22
 
 ### Added

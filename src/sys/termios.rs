@@ -478,6 +478,14 @@ libc_bitflags! {
         ICRNL;
         IXON;
         IXOFF;
+        #[cfg(any(linux_android,
+                  target_os = "aix",
+                  target_os = "cygwin",
+                  target_os = "haiku",
+                  target_os = "hurd",
+                  target_os = "nto",
+                  solarish))]
+        IUCLC;
         #[cfg(not(target_os = "redox"))]
         IXANY;
         #[cfg(not(any(target_os = "redox", target_os = "haiku")))]
@@ -697,6 +705,11 @@ libc_bitflags! {
         #[cfg(not(any(target_os = "redox", target_os = "cygwin")))]
         PENDIN;
         NOFLSH;
+        #[cfg(any(linux_android,
+                  target_os = "aix",
+                  target_os = "haiku",
+                  target_os = "nto"))]
+        XCASE;
     }
 }
 
