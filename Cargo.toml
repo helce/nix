@@ -2,7 +2,7 @@
 name        = "nix"
 description = "Rust friendly bindings to *nix APIs"
 edition     = "2021"
-version     = "0.30.1"
+version     = "0.31.0"
 rust-version = "1.69"
 authors     = ["The nix-rust Project Developers"]
 repository  = "https://github.com/nix-rust/nix"
@@ -28,7 +28,7 @@ targets = [
 ]
 
 [dependencies]
-libc = { version = "0.2.171", features = ["extra_traits"] }
+libc = { version = "=0.2.180", features = ["extra_traits"] }
 bitflags = "2.3.3"
 cfg-if = "1.0"
 pin-utils = { version = "0.1.0", optional = true }

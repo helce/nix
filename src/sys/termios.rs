@@ -178,7 +178,7 @@ impl Termios {
     ///
     /// This is not part of `nix`'s public API because it requires additional work to maintain type
     /// safety.
-    pub(crate) fn get_libc_termios(&self) -> Ref<libc::termios> {
+    pub(crate) fn get_libc_termios(&self) -> Ref<'_, libc::termios> {
         {
             let mut termios = self.inner.borrow_mut();
             termios.c_iflag = self.input_flags.bits();
@@ -503,6 +503,17 @@ libc_bitflags! {
                   target_os = "haiku",
                   apple_targets))]
         OFDEL as tcflag_t;
+        #[cfg(any(linux_android,
+                  target_os = "aix",
+                  target_os = "cygwin",
+                  target_os = "fuchsia",
+                  target_os = "haiku",
+                  target_os = "hurd",
+                  target_os = "nto",
+                  target_os = "redox",
+                  solarish,
+                  apple_targets))]
+        OFILL as tcflag_t;
         #[cfg(any(linux_android,
                   target_os = "haiku",
                   apple_targets))]

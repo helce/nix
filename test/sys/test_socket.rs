@@ -462,7 +462,7 @@ mod recvfrom {
         assert_eq!(AddressFamily::Inet, from.unwrap().family().unwrap());
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(linux_android)]
     mod udp_offload {
         use super::*;
         use nix::sys::socket::sockopt::{UdpGroSegment, UdpGsoSegment};
@@ -2116,7 +2116,10 @@ pub fn test_recvif_ipv4() {
     }
 }
 
-#[cfg(any(linux_android, target_os = "freebsd"))]
+#[cfg(any(
+    all(linux_android, not(target_env = "uclibc")),
+    target_os = "freebsd"
+))]
 #[cfg_attr(qemu, ignore)]
 #[test]
 pub fn test_recvif_ipv6() {
