@@ -14,6 +14,11 @@ permissions:
 
 env: 
   MSRV: 1.69.0
+  # Rust's Loongarch support merged in 1.71.0
+  MSRV_LOONGARCH: 1.71.0
+  # Minimal Rust version to support all 3 official OpenHarmony targets as tier2
+  MSRV_OHOS: 1.78.0 
+  RUSTFLAGS: -Dwarnings
 
 jobs:
   macos:
@@ -44,7 +49,7 @@ jobs:
         run: sudo rm -rf $CARGO_HOME/registry/index
 
   macos-aarch64:
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       TARGET: aarch64-apple-darwin
     steps:
@@ -73,8 +78,8 @@ jobs:
   # Use cross for QEMU-based testing
   # cross needs to execute Docker, GitHub Action already has it installed
   cross:
-    runs-on: ubuntu-20.04 
-    needs: [rustfmt, minver, macos, linux_native_builds, rust_stable]
+    runs-on: ubuntu-24.04
+    needs: [rustfmt, minver, macos, x86_64_linux_native_builds, rust_stable]
     strategy:
       fail-fast: false
       matrix:
@@ -83,11 +88,17 @@ jobs:
           armv7-unknown-linux-gnueabihf,
           i686-unknown-linux-gnu,
           i686-unknown-linux-musl,
-          mips-unknown-linux-gnu,
-          mips64-unknown-linux-gnuabi64,
-          mips64el-unknown-linux-gnuabi64,
-          mipsel-unknown-linux-gnu,
+          
+          # Disable MIPS CIs, see https://github.com/nix-rust/nix/issues/2593
+          # for detailed info.
+          # 
+          # mips-unknown-linux-gnu,
+          # mips64-unknown-linux-gnuabi64,
+          # mips64el-unknown-linux-gnuabi64,
+          # mipsel-unknown-linux-gnu,
+
           powerpc64le-unknown-linux-gnu,
+          loongarch64-unknown-linux-gnu,
         ]
 
     steps:
@@ -97,7 +108,8 @@ jobs:
       - name: setup Rust
         uses: dtolnay/rust-toolchain@master
         with: 
-          toolchain: '${{ env.MSRV }}'
+          # Use a newer version rustc if the target is Loongarch, remove this workaround after MSRV is newer than 1.71.0
+          toolchain: "${{ matrix.target == 'loongarch64-unknown-linux-gnu' && env.MSRV_LOONGARCH || env.MSRV }}"
           components: clippy
 
       # cross relies on docker or podman, GitHub Acton already has it installed.
@@ -126,10 +138,9 @@ jobs:
 
 
 
-  # Tasks for Linux native builds
-  # Only test x86_64 targets on GitHub Action, leave aarch64 one in Cirrus CI.
-  linux_native_builds:
-    runs-on: ubuntu-20.04
+  # Tasks for x86_64 Linux native builds
+  x86_64_linux_native_builds:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -163,9 +174,46 @@ jobs:
 
       - name: before_cache_script
         run: sudo rm -rf $CARGO_HOME/registry/index;
+        
+  # Tasks for aarch64 Linux native builds
+  aarch64_linux_native_builds:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [
+          aarch64-unknown-linux-gnu,
+          aarch64-unknown-linux-musl,
+        ]
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with: 
+          toolchain: '${{ env.MSRV }}'
+          components: clippy
+
+      - name: install targets
+        run: rustup target add ${{ matrix.target }}
+
+      - name: build
+        uses: ./.github/actions/build
+        with:
+          TARGET: '${{ matrix.TARGET }}'
+
+      - name: test
+        uses: ./.github/actions/test
+        with:
+          TARGET: '${{ matrix.TARGET }}'
+
+      - name: before_cache_script
+        run: sudo rm -rf $CARGO_HOME/registry/index;
 
   rust_stable:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env: 
       TARGET: x86_64-unknown-linux-gnu
     steps:
@@ -194,8 +242,8 @@ jobs:
 
   # Tasks for cross-compiling, but no testing
   cross_compiling:
-    runs-on: ubuntu-20.04
-    needs: [rustfmt, minver, macos, linux_native_builds, rust_stable]
+    runs-on: ubuntu-latest
+    needs: [rustfmt, minver, macos, x86_64_linux_native_builds, rust_stable]
     env:
       BUILD: check
     strategy:
@@ -223,6 +271,9 @@ jobs:
           - target: s390x-unknown-linux-gnu
           - target: x86_64-unknown-linux-gnux32
           - target: x86_64-unknown-netbsd
+          - target: aarch64-unknown-linux-ohos
+          - target: armv7-unknown-linux-ohos
+          - target: x86_64-unknown-linux-ohos
 
     steps:
       - name: checkout
@@ -231,7 +282,8 @@ jobs:
       - name: setup Rust
         uses: dtolnay/rust-toolchain@master
         with: 
-          toolchain: '${{ env.MSRV }}'
+           # Use a newer version rustc if it is OpenHarmony, remove this workaround after MSRV is newer than 1.78.0 
+          toolchain: "${{ contains(matrix.target, 'ohos')  && env.MSRV_OHOS || env.MSRV }}" 
           components: clippy
 
       - name: install targets
@@ -246,11 +298,11 @@ jobs:
 
       - name: before_cache_script
         run: rm -rf $CARGO_HOME/registry/index
-  
+
 
   redox:
-    runs-on: ubuntu-20.04
-    needs: [rustfmt, minver, macos, linux_native_builds, rust_stable]
+    runs-on: ubuntu-latest
+    needs: [rustfmt, minver, macos, x86_64_linux_native_builds, rust_stable]
     env: 
       TARGET: x86_64-unknown-redox
       CLIPPYFLAGS: -D warnings
@@ -282,7 +334,7 @@ jobs:
 
   # Rust Tier 3 targets can't use Rustup
   tier3:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env: 
       BUILD: check
       ZFLAGS: -Zbuild-std
@@ -293,13 +345,9 @@ jobs:
         include:
           - target: x86_64-unknown-dragonfly
           - target: x86_64-unknown-openbsd
-          # Temporarily disable armv7-unknown-linux-uclibceabihf
-          # https://github.com/nix-rust/nix/issues/2200
-          #- target: armv7-unknown-linux-uclibceabihf
           - target: x86_64-unknown-haiku
-          # Disable hurd due to
-          # https://github.com/nix-rust/nix/issues/2306
-          # - target: i686-unknown-hurd-gnu
+          - target: armv7-unknown-linux-uclibceabihf
+          - target: i686-unknown-hurd-gnu
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -312,6 +360,13 @@ jobs:
       - name: install src
         run: rustup component add rust-src
 
+      # Cargo uses the latest version of libc(without lock file), which is, at the time of writing 
+      # this, 0.2.172. And the hurd target is broken with 0.2.172: https://github.com/rust-lang/libc/issues/4421
+      # So we need to downgrade it.
+      - name: downgrade libc to 0.2.171 on hurd
+        if: ${{ matrix.target == 'i686-unknown-hurd-gnu' }}
+        run: cargo update -p libc --precise 0.2.171
+
       - name: build
         uses: ./.github/actions/build
         with:
@@ -323,12 +378,33 @@ jobs:
       - name: before_cache_script
         run: rm -rf $CARGO_HOME/registry/index
 
+  solaris:
+    name: solaris (x86_64-pc-solaris)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build and test
+        uses: vmactions/solaris-vm@v1
+        with:
+          release: "11.4-gcc"
+          usesh: true
+          mem: 4096
+          copyback: false
+          prepare: |
+            source <(curl -s https://raw.githubusercontent.com/psumbera/solaris-rust/refs/heads/main/sh.rust-web-install)
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ Solaris-version ~~~~"
+            uname -a
+          run: |
+            export PATH=$HOME/.rust_solaris/bin:$PATH
+            cargo build --target x86_64-pc-solaris --all-targets --all-features && sudo cargo test
 
   # Test that we can build with the lowest version of all dependencies.
   # "cargo test" doesn't work because some of our dev-dependencies, like
   # rand, can't build with their own minimal dependencies.
   minver:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env: 
       TARGET: x86_64-unknown-linux-gnu
     steps:
@@ -339,7 +415,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: setup 
-        run: cargo update -Zminimal-versions
+        run: cargo update -Zdirect-minimal-versions
 
       - name: check
         run: cargo check
@@ -349,7 +425,7 @@ jobs:
 
   # Tasks that checks if the code is formatted right using `cargo fmt` tool
   rustfmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
